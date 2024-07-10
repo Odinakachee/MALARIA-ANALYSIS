@@ -52,7 +52,7 @@ malaria_inc_processed %>%
 
 #ETHIOPIA
 malaria_inc_processed %>%
-  filter(code == 'VEN') %>%
+  filter(code == 'ETH') %>%
   ggplot(aes(year, incidence, color = country)) +
   geom_line() +
   scale_y_continuous(labels = scales :: percent_format())
@@ -90,6 +90,62 @@ ggplot(aes(long, lat, group = group, fill = incidence)) +
   facet_wrap(~year)
   
 #malaria death cases
+
+malaria_deaths <- read.csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2018/2018-11-13/malaria_deaths.csv')
+
+view(malaria_deaths)
+malaria_deaths_processed <- malaria_deaths %>%
+  setNames(c('country', 'code', 'year', 'deaths'))
+
+malaria_deaths_processed %>%
+  filter(country %in% sample(unique(country), 6)) %>%
+  ggplot(aes(year, deaths, color = country)) +
+  geom_line() +
+  labs(y = 'deaths per 100,000') +
+  scale_y_continuous(labels =  scales:: percent_format())
+
+
+install.packages('fuzzyjoin')
+install.packages('stringr')
+
+library(stringr)
+library(fuzzyjoin)
+
+malaria_country_data <- malaria_deaths_processed %>%
+  inner_join(maps :: iso3166 %>%
+               select(a3, mapname), by = c(code = 'a3')) %>%
+  mutate(mapname = str_remove(mapname, '//C.*'))
+
+malaria_map_data <- map_data('world') %>%
+  filter(region != 'Antarctica') %>%
+  tbl_df() %>%
+  inner_join(malaria_country_data, by =  c(region = 'mapname'))
+
+malaria_map_data %>%
+  ggplot(aes(long, lat, group = group, fill = deaths)) +
+  geom_polygon() +
+  scale_fill_gradient2(low = 'blue', high = 'red', midpoint = 100) +
+  theme_void() +
+  labs(title = 'Malaria deaths over time around the world',
+       fill = 'deaths per 10,000')
+
+install.packages('countrycode')
+library(countrycode)
+install.packages('gganimate')
+library(gganimate)
+
+
+animation <- malaria_map_data %>%
+  mutate(continent = countrycode(code, 'iso3c', 'continent')) %>%
+filter(continent == 'Africa') %>%
+  ggplot(aes(long, lat, group = group, fill = deaths)) +
+  geom_polygon() +
+  scale_fill_gradient2(low = 'blue', high = 'red', midpoint = 100) +
+  theme_void() +
+  transition_manual(year) +
+  labs(title = 'Malaria deaths over time in Africa ((current_frame))', fill = 'deaths per 100,000')
+
+animate(animation, nframes = 300, fps = 10, renderer = gifski_renderer('test.gif'))
 
 
 
